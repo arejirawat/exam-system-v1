@@ -48,8 +48,10 @@
     </main>
 
     <!-- ระบบตรวจจับการสลับหน้าจอ (JavaScript) -->
+<!-- ระบบตรวจจับการสลับหน้าจอ (JavaScript) ที่ปรับปรุงแล้ว -->
     <script>
         let warningCount = 0;
+        const maxWarnings = 3; // กำหนดจำนวนครั้งสูงสุดที่อนุญาต
         const modal = document.getElementById('warningModal');
         const countDisplay = document.getElementById('violationCount');
 
@@ -57,14 +59,36 @@
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 warningCount++;
-                countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount}`;
-                modal.classList.remove('hidden');
+                
+                // ตรวจสอบเงื่อนไขหากละเมิดครบ 3 ครั้ง
+                if (warningCount >= maxWarnings) {
+                    terminateExam();
+                } else {
+                    // หากยังไม่ครบ 3 ครั้ง ให้แสดงการแจ้งเตือนตามปกติ
+                    countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount} (ระบบจะยุติการสอบเมื่อครบ ${maxWarnings} ครั้ง)`;
+                    modal.classList.remove('hidden');
+                }
             }
         });
 
         // ฟังก์ชันปิดหน้าต่างแจ้งเตือน
         function closeModal() {
             modal.classList.add('hidden');
+        }
+
+        // ฟังก์ชันยุติการสอบ
+        function terminateExam() {
+            // เขียนทับหน้าจอทั้งหมดด้วยหน้าต่างแจ้งเตือนการทุจริต
+            document.body.innerHTML = `
+                <div class="bg-red-900 min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
+                    <h1 class="text-5xl font-bold mb-6">ยุติการสอบ</h1>
+                    <p class="text-2xl mb-4">ท่านได้ละเมิดกฎการสอบ (สลับหน้าจอหรือพับแอปพลิเคชัน) ครบ ${maxWarnings} ครั้ง</p>
+                    <p class="text-xl text-red-200 mb-8">ระบบได้ทำการยกเลิกสิทธิ์การทำแบบทดสอบของท่านแล้ว</p>
+                    <p class="text-lg bg-white text-red-900 px-6 py-2 rounded-lg font-bold">กรุณาติดต่อผู้คุมสอบทันที</p>
+                </div>
+            `;
+            
+            // หมายเหตุ: หากใช้ Google Forms คำตอบที่ยังไม่ได้กดส่งจะไม่ถูกบันทึก
         }
     </script>
 </body>
