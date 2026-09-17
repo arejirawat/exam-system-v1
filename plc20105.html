@@ -54,32 +54,44 @@
     <!-- ระบบควบคุมการสอบ (JavaScript) -->
     <script>
         let warningCount = 0;
-        const maxWarnings = 3; // จำนวนครั้งที่อนุญาตก่อนยุติการสอบ
+        const maxWarnings = 3; 
         const modal = document.getElementById('warningModal');
         const countDisplay = document.getElementById('violationCount');
         const switchCounterDisplay = document.getElementById('switchCounter');
 
-        // ฟังก์ชันตรวจสอบการพับหน้าจอหรือเปลี่ยนแท็บ
+        // สร้างฟังก์ชันกลางสำหรับการนับการละเมิด
+        function registerViolation() {
+            warningCount++;
+            
+            // อัปเดตตัวเลขบนลายน้ำมุมขวา
+            switchCounterDisplay.innerText = `สลับหน้าจอ: ${warningCount} ครั้ง`;
+            
+            // ตรวจสอบเงื่อนไขยุติการสอบ
+            if (warningCount >= maxWarnings) {
+                terminateExam();
+            } else {
+                countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount} (ระบบจะยุติการสอบเมื่อครบ ${maxWarnings} ครั้ง)`;
+                modal.classList.remove('hidden');
+            }
+        }
+
+        // 1. ตรวจจับการซ่อนหน้าจอ หรือเปลี่ยนแท็บ
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                warningCount++;
-                
-                // อัปเดตตัวเลขบนลายน้ำมุมขวา
-                switchCounterDisplay.innerText = `สลับหน้าจอ: ${warningCount} ครั้ง`;
-                
-                // ตรวจสอบเงื่อนไขยุติการสอบ
-                if (warningCount >= maxWarnings) {
-                    terminateExam();
-                } else {
-                    countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount} (ระบบจะยุติการสอบเมื่อครบ ${maxWarnings} ครั้ง)`;
-                    modal.classList.remove('hidden');
-                }
+                registerViolation();
             }
+        });
+
+        // 2. ตรวจจับการคลิกออกนอกหน้าต่าง (ครอบคลุมกรณี 2 จอภาพ)
+        window.addEventListener('blur', function() {
+            registerViolation();
         });
 
         // ฟังก์ชันปิดหน้าต่างแจ้งเตือน
         function closeModal() {
             modal.classList.add('hidden');
+            // คืนค่าโฟกัสกลับมาที่หน้าต่างข้อสอบ
+            window.focus(); 
         }
 
         // ฟังก์ชันยุติการสอบ
@@ -87,7 +99,7 @@
             document.body.innerHTML = `
                 <div class="bg-red-900 min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
                     <h1 class="text-5xl font-bold mb-6">ยุติการสอบ</h1>
-                    <p class="text-2xl mb-4">ท่านได้ละเมิดกฎการสอบ (สลับหน้าจอหรือพับแอปพลิเคชัน) ครบ ${maxWarnings} ครั้ง</p>
+                    <p class="text-2xl mb-4">ท่านได้ละเมิดกฎการสอบ (สลับหน้าจอหรือสูญเสียการโฟกัสหน้าต่าง) ครบ ${maxWarnings} ครั้ง</p>
                     <p class="text-xl text-red-200 mb-8">ระบบได้ทำการยกเลิกสิทธิ์การทำแบบทดสอบของท่านแล้ว</p>
                     <p class="text-lg bg-white text-red-900 px-6 py-2 rounded-lg font-bold">กรุณาติดต่อผู้คุมสอบทันที</p>
                 </div>
