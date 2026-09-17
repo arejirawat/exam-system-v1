@@ -75,15 +75,22 @@
             }
         }
 
-        // 1. ตรวจจับการซ่อนหน้าจอ หรือเปลี่ยนแท็บ
+		// 1. ตรวจจับการซ่อนหน้าจอ หรือเปลี่ยนแท็บ (ยังคงใช้งานตามปกติ)
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 registerViolation();
             }
         });
 
-        // 2. ตรวจจับการคลิกออกนอกหน้าต่าง (ครอบคลุมกรณี 2 จอภาพ)
+        // 2. ตรวจจับการคลิกออกนอกหน้าต่าง (แก้ไขเพื่อรองรับการคลิกใน Google Forms)
         window.addEventListener('blur', function() {
+            // ตรวจสอบว่า element ที่กำลังใช้งานอยู่คือ iframe (Google Forms) หรือไม่
+            if (document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe') {
+                // หากเป็นการคลิกเพื่อเลือกคำตอบในข้อสอบ ไม่ต้องทำอะไร (ละเว้นการนับ)
+                return;
+            }
+            
+            // หากเป็นการคลิกที่โปรแกรมอื่น แถบ Taskbar หรือหน้าจอที่ 2 ระบบจะนับเป็นการละเมิด
             registerViolation();
         });
 
