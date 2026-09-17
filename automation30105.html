@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบทดสอบออนไลน์ - วิทยาลัยเทคนิคสัตหีบ</title>
+    <!-- นำเข้า Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ป้องกันการคลุมดำข้อความบนหน้าเว็บหลัก */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col" oncontextmenu="return false;">
+
+    <!-- ลายน้ำมุมขวาบน สำหรับแสดงจำนวนครั้งที่สลับหน้าจอ -->
+    <div id="switchCounter" class="fixed top-4 right-4 z-[9999] text-red-600/40 text-xl font-bold pointer-events-none select-none">
+        สลับหน้าจอ: 0 ครั้ง
+    </div>
+
+    <!-- ส่วนหัวของหน้าเว็บ -->
+    <header class="bg-blue-800 text-white p-4 shadow-md text-center relative z-20">
+        <h1 class="text-2xl font-bold">ระบบทดสอบออนไลน์ Automation 30105 Aj.ARE V1.2</h1>
+        <p class="text-sm mt-1">กรุณาทำแบบทดสอบด้วยความซื่อสัตย์ ระบบจะบันทึกการสลับหน้าจอของท่าน</p>
+    </header>
+
+    <!-- หน้าต่างแจ้งเตือน (Modal) เมื่อตรวจพบการสลับหน้าจอ -->
+    <div id="warningModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm mx-4">
+            <h2 class="text-xl font-bold text-red-600 mb-2">แจ้งเตือนการทำผิดเงื่อนไข</h2>
+            <p class="text-gray-700 mb-4">ตรวจพบการสลับหน้าจอ หรือพับแอปพลิเคชัน</p>
+            <p id="violationCount" class="font-bold text-lg mb-4 text-gray-800">จำนวนครั้งที่ละเมิด: 0</p>
+            <button onclick="closeModal()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+                รับทราบและกลับสู่การสอบ
+            </button>
+        </div>
+    </div>
+
+    <!-- พื้นที่สำหรับฝัง Google Forms -->
+    <main class="flex-grow container mx-auto px-2 py-6 w-full max-w-4xl relative z-20">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden" style="height: 85vh;">
+            
+			 <!-- นำรหัส iframe จาก Google Forms มาวางทับบรรทัดนี้ -->
+			<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdtiEP3mNm4aXOmzIrI8PzmXWve3dAUlA5TenN15GaUeQKHrQ/viewform?embedded=true" width="100%" height="100%" frameborder="0" marginheight="0" marginwidth="0">กำลังโหลด…</iframe>
+            <!-- สิ้นสุดพื้นที่ iframe -->   
+        </div>
+    </main>
+
+    <!-- ระบบควบคุมการสอบ (JavaScript) -->
+    <script>
+        let warningCount = 0;
+        const maxWarnings = 3; // จำนวนครั้งที่อนุญาตก่อนยุติการสอบ
+        const modal = document.getElementById('warningModal');
+        const countDisplay = document.getElementById('violationCount');
+        const switchCounterDisplay = document.getElementById('switchCounter');
+
+        // ฟังก์ชันตรวจสอบการพับหน้าจอหรือเปลี่ยนแท็บ
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                warningCount++;
+                
+                // อัปเดตตัวเลขบนลายน้ำมุมขวา
+                switchCounterDisplay.innerText = `สลับหน้าจอ: ${warningCount} ครั้ง`;
+                
+                // ตรวจสอบเงื่อนไขยุติการสอบ
+                if (warningCount >= maxWarnings) {
+                    terminateExam();
+                } else {
+                    countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount} (ระบบจะยุติการสอบเมื่อครบ ${maxWarnings} ครั้ง)`;
+                    modal.classList.remove('hidden');
+                }
+            }
+        });
+
+        // ฟังก์ชันปิดหน้าต่างแจ้งเตือน
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        // ฟังก์ชันยุติการสอบ
+        function terminateExam() {
+            document.body.innerHTML = `
+                <div class="bg-red-900 min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
+                    <h1 class="text-5xl font-bold mb-6">ยุติการสอบ</h1>
+                    <p class="text-2xl mb-4">ท่านได้ละเมิดกฎการสอบ (สลับหน้าจอหรือพับแอปพลิเคชัน) ครบ ${maxWarnings} ครั้ง</p>
+                    <p class="text-xl text-red-200 mb-8">ระบบได้ทำการยกเลิกสิทธิ์การทำแบบทดสอบของท่านแล้ว</p>
+                    <p class="text-lg bg-white text-red-900 px-6 py-2 rounded-lg font-bold">กรุณาติดต่อผู้คุมสอบทันที</p>
+                </div>
+            `;
+        }
+
+        // ระบบป้องกันคีย์ลัดสำหรับการบันทึกภาพหน้าจอและสั่งพิมพ์ (สำหรับคอมพิวเตอร์)
+        document.addEventListener("keyup", function (e) {
+            if (e.key === "PrintScreen") {
+                navigator.clipboard.writeText("ไม่อนุญาตให้คัดลอกข้อสอบ");
+                alert("คำเตือน: ตรวจพบความพยายามในการบันทึกภาพหน้าจอ");
+            }
+        });
+
+        document.addEventListener("keydown", function (e) {
+            if ((e.ctrlKey && (e.key === 'p' || e.key === 's')) || (e.metaKey && e.shiftKey)) {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้คำสั่งนี้ระหว่างการสอบ");
+            }
+        });
+    </script>
+</body>
+</html>
