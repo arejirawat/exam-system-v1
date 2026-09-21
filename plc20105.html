@@ -56,7 +56,7 @@
         <div class="bg-white rounded-lg shadow-md overflow-hidden" style="height: 85vh;">
            		<!-- นำรหัส iframe จาก Google Forms มาวางทับบรรทัดนี้ -->
 				<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdtiEP3mNm4aXOmzIrI8PzmXWve3dAUlA5TenN15GaUeQKHrQ/viewform?embedded=true" width="100%" height="100%" frameborder="0" marginheight="0" marginwidth="0">กำลังโหลด…</iframe>
-            	<!-- สิ้นสุดพื้นที่ iframe -->   
+            	<!-- สิ้นสุดพื้นที่ iframe -->
 		</div>
     </main>
 
@@ -64,7 +64,7 @@
     <script>
         // 1. การตั้งค่าตัวแปรหลัก
         let warningCount = 0;
-        const maxWarnings = 3; 
+        const maxWarnings = 3;
         const modal = document.getElementById('warningModal');
         const countDisplay = document.getElementById('violationCount');
         const switchCounterDisplay = document.getElementById('switchCounter');
@@ -82,9 +82,9 @@
             let elem = document.documentElement;
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().catch(err => { alert(`ระบบขัดข้อง: ${err.message}`); });
-            } else if (elem.webkitRequestFullscreen) { 
+            } else if (elem.webkitRequestFullscreen) {
                 elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { 
+            } else if (elem.msRequestFullscreen) {
                 elem.msRequestFullscreen();
             }
         }
@@ -110,7 +110,7 @@
         function registerViolation() {
             warningCount++;
             switchCounterDisplay.innerText = `สลับหน้าจอ: ${warningCount} ครั้ง`;
-            
+
             if (warningCount >= maxWarnings) {
                 terminateExam();
             } else {
@@ -150,20 +150,51 @@
             registerViolation();
         });
 
-        // 6. ระบบป้องกันคีย์ลัด (Print Screen, Save, Print)
+        // 6. ระบบป้องกันคีย์ลัด (Print Screen, Save, Print) และ DevTools
         document.addEventListener("keyup", function (e) {
             if (e.key === "PrintScreen") {
                 navigator.clipboard.writeText("ไม่อนุญาตให้คัดลอกข้อสอบ");
                 alert("คำเตือน: ตรวจพบความพยายามในการบันทึกภาพหน้าจอ");
+                registerViolation();
             }
         });
 
         document.addEventListener("keydown", function (e) {
-            if ((e.ctrlKey && (e.key === 'p' || e.key === 's')) || (e.metaKey && e.shiftKey)) {
+            // ป้องกันการกด F12 (DevTools)
+            if (e.key === "F12") {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้เครื่องมือนักพัฒนา");
+                registerViolation();
+            }
+            // ป้องกัน Ctrl+Shift+I, C, J (DevTools)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.key === 'J' || e.key === 'j')) {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้เครื่องมือนักพัฒนา");
+                registerViolation();
+            }
+            // ป้องกัน Ctrl+U (View Source), Ctrl+P (Print), Ctrl+S (Save), Ctrl+C (Copy), Ctrl+V (Paste), Ctrl+X (Cut)
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'P' || e.key === 'p' || e.key === 'S' || e.key === 's' || e.key === 'C' || e.key === 'c' || e.key === 'V' || e.key === 'v' || e.key === 'X' || e.key === 'x')) {
                 e.preventDefault();
                 alert("คำเตือน: ไม่อนุญาตให้ใช้คีย์ลัดนี้ระหว่างการสอบ");
             }
         });
+
+        // 7. ป้องกันการคัดลอก ตัด และวาง ผ่านเมาส์หรือเมนู
+        document.addEventListener('copy', function(e) { e.preventDefault(); return false; });
+        document.addEventListener('cut', function(e) { e.preventDefault(); return false; });
+        document.addEventListener('paste', function(e) { e.preventDefault(); return false; });
+
+        // 8. แจ้งเตือนเมื่อพยายามจะปิดหน้าต่างหรือรีเฟรชหน้าเว็บ
+        window.addEventListener("beforeunload", function (e) {
+            // จะแสดงกล่องข้อความยืนยันของเบราว์เซอร์
+            const confirmationMessage = "คุณแน่ใจหรือไม่ว่าต้องการออกจากหน้านี้? การสอบของคุณอาจไม่ได้รับการบันทึก";
+            e.returnValue = confirmationMessage;
+            return confirmationMessage;
+        });
+
+        // 9. ป้องกันการลากคลุมข้อความบนหน้าเว็บเพิ่มเติม
+        document.addEventListener('selectstart', function(e) { e.preventDefault(); });
+        document.addEventListener('dragstart', function(e) { e.preventDefault(); });
     </script>
 </body>
 </html>
