@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการห้องสอบ (สำหรับครู)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        // นำเข้า Firebase modules ที่จำเป็น
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ==========================================
+        // 1. นำตั้งค่า Firebase Config ของคุณมาใส่ตรงนี้
+        // ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCmB4fRT8x8sRnvh8U4NyzOG7NzphtXJtM",
+  authDomain: "tatc-form-exam.firebaseapp.com",
+  projectId: "tatc-form-exam",
+  storageBucket: "tatc-form-exam.firebasestorage.app",
+  messagingSenderId: "382874928446",
+  appId: "1:382874928446:web:aab85bdbd232684af0986f",
+  measurementId: "G-KHDB49R1SN"
+};
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        const MAX_LINKS = 5;
+        let currentUser = null;
+
+        // UI Elements
+        const loginSection = document.getElementById('loginSection');
+        const dashboardSection = document.getElementById('dashboardSection');
+        const userInfo = document.getElementById('userInfo');
+        const quotaInfo = document.getElementById('quotaInfo');
+        const createForm = document.getElementById('createForm');
+        const linksTableBody = document.getElementById('linksTableBody');
+        
+        // Buttons
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(error => alert(error.message));
+        });
+        
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // ตรวจสอบสถานะการล็อกอิน
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                userInfo.textContent = `เข้าสู่ระบบโดย: ${user.displayName} (${user.email})`;
+                await loadDashboardData();
+            } else {
+                currentUser = null;
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+            }
+        });
+
+        // โหลดข้อมูล Dashboard (โควตาและลิงก์ที่เคยสร้าง)
+        async function loadDashboardData() {
+            try {
+                // 1. ดึงข้อมูล User เพื่อดูจำนวนโควตา
+                const userRef = doc(db, "users", currentUser.uid);
+                const userSnap = await getDoc(userRef);
+                let linkCount = 0;
+                
+                if (userSnap.exists()) {
+                    linkCount = userSnap.data().linkCount || 0;
+                } else {
+                    // สร้างข้อมูล User ใหม่ถ้ายังไม่เคยล็อกอิน
+                    await setDoc(userRef, { linkCount: 0, email: currentUser.email });
+                }
+                
+                quotaInfo.textContent = `โควตาการสร้างลิงก์: ${linkCount} / ${MAX_LINKS} สิทธิ์`;
+
+                if (linkCount >= MAX_LINKS) {
+                    createForm.classList.add('hidden');
+                    document.getElementById('quotaFullMsg').classList.remove('hidden');
+                } else {
+                    createForm.classList.remove('hidden');
+                    document.getElementById('quotaFullMsg').classList.add('hidden');
+                }
+
+                // 2. ดึงข้อมูลลิงก์สอบที่ครูคนนี้สร้างไว้
+                const q = query(collection(db, "exams"), where("uid", "==", currentUser.uid));
+                const querySnapshot = await getDocs(q);
+                
+                linksTableBody.innerHTML = '';
+                if(querySnapshot.empty) {
+                    linksTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">ยังไม่มีการสร้างลิงก์ข้อสอบ</td></tr>';
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const examUrl = `${window.location.origin}/index.html?id=${doc.id}`;
+                    
+                    const row = `
+                        <tr class="border-b">
+                            <td class="px-6 py-4 font-medium">${data.name}</td>
+                            <td class="px-6 py-4 text-blue-600 truncate max-w-xs text-sm">${data.formUrl}</td>
+                            <td class="px-6 py-4">
+                                <a href="${examUrl}" target="_blank" class="text-green-600 underline">ดูหน้าสอบ</a>
+                            </td>
+                            <td class="px-6 py-4">
+                                <button onclick="navigator.clipboard.writeText('${examUrl}'); alert('คัดลอกลิงก์สำหรับนักเรียนแล้ว');" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-sm">
+                                    คัดลอกลิงก์
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    linksTableBody.insertAdjacentHTML('beforeend', row);
+                });
+            } catch (error) {
+                console.error("Error loading data:", error);
+                alert("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + error.message);
+            }
+        }
+
+        // จัดการฟอร์มสร้างลิงก์ใหม่
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const examName = document.getElementById('examName').value;
+            let formUrl = document.getElementById('formUrl').value;
+
+            // ตรวจสอบความถูกต้องของลิงก์เบื้องต้น
+            if (!formUrl.includes('docs.google.com/forms')) {
+                alert('กรุณาใส่ลิงก์ของ Google Form ให้ถูกต้อง');
+                return;
+            }
+
+            // ถ้าเป็นลิงก์ยาวแบบ viewform ให้เปลี่ยนเป็น embedded (ถ้ามี)
+            if(formUrl.includes('/viewform') && !formUrl.includes('embedded=true')) {
+                formUrl += (formUrl.includes('?') ? '&' : '?') + 'embedded=true';
+            }
+
+            try {
+                const userRef = doc(db, "users", currentUser.uid);
+                const userSnap = await getDoc(userRef);
+                const currentCount = userSnap.data()?.linkCount || 0;
+
+                if (currentCount >= MAX_LINKS) {
+                    alert('คุณใช้โควตาครบ 5 ลิงก์แล้ว');
+                    return;
+                }
+
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('submitBtn').innerText = 'กำลังสร้าง...';
+
+                // เพิ่มข้อมูลลงใน Collection exams
+                await addDoc(collection(db, "exams"), {
+                    uid: currentUser.uid,
+                    name: examName,
+                    formUrl: formUrl,
+                    createdAt: serverTimestamp()
+                });
+
+                // อัปเดตโควตา
+                await setDoc(userRef, { linkCount: currentCount + 1 }, { merge: true });
+
+                alert('สร้างลิงก์ห้องสอบสำเร็จ!');
+                createForm.reset();
+                await loadDashboardData(); // รีเฟรชหน้ากระดาน
+
+            } catch (error) {
+                console.error("Error creating exam:", error);
+                alert("เกิดข้อผิดพลาด: " + error.message);
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').innerText = 'สร้างลิงก์สำหรับนักเรียน';
+            }
+        });
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <header class="bg-blue-800 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-2xl font-bold">ระบบจัดการห้องสอบ (Teacher Dashboard)</h1>
+        <div id="userInfo" class="text-sm font-medium"></div>
+    </header>
+
+    <main class="container mx-auto p-6 max-w-5xl">
+        <!-- Section Login -->
+        <div id="loginSection" class="bg-white p-10 rounded-lg shadow-md text-center mt-10">
+            <h2 class="text-3xl font-bold mb-4 text-blue-900">สำหรับคุณครูผู้คุมสอบ</h2>
+            <p class="text-gray-600 mb-8">เข้าสู่ระบบเพื่อสร้างลิงก์ห้องสอบป้องกันการทุจริต จำกัดจำนวน 5 ลิงก์ต่อบัญชี</p>
+            <button id="loginBtn" class="bg-white border border-gray-300 text-gray-700 font-bold py-3 px-6 rounded shadow hover:bg-gray-100 flex items-center justify-center mx-auto">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 mr-3" alt="Google Logo">
+                ล็อกอินด้วย Google
+            </button>
+        </div>
+
+        <!-- Section Dashboard -->
+        <div id="dashboardSection" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">จัดการลิงก์ข้อสอบ</h2>
+                <button id="logoutBtn" class="text-red-500 hover:text-red-700 underline font-medium">ออกจากระบบ</button>
+            </div>
+
+            <!-- กล่องโควตาและการสร้าง -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                    <h3 class="text-xl font-bold">สร้างลิงก์ใหม่</h3>
+                    <span id="quotaInfo" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold">โควตา: 0 / 5</span>
+                </div>
+
+                <div id="quotaFullMsg" class="hidden text-red-600 font-bold p-4 bg-red-50 rounded text-center">
+                    คุณใช้งานโควตาสร้างลิงก์ครบ 5 ครั้งแล้ว ไม่สามารถสร้างเพิ่มได้
+                </div>
+
+                <form id="createForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อวิชา / ข้อสอบ</label>
+                        <input type="text" id="examName" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="เช่น กลางภาค วิชาคณิตศาสตร์ ม.4">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ลิงก์ Google Form (แนะนำให้ใช้ลิงก์แบบ Embed ฝังหน้าเว็บ)</label>
+                        <input type="url" id="formUrl" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://docs.google.com/forms/d/e/.../viewform">
+                    </div>
+                    <button type="submit" id="submitBtn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700">
+                        สร้างลิงก์สำหรับนักเรียน
+                    </button>
+                </form>
+            </div>
+
+            <!-- ตารางแสดงรายการ -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-6 py-3 font-bold text-gray-700">ชื่อข้อสอบ</th>
+                            <th class="px-6 py-3 font-bold text-gray-700">Google Form ต้นฉบับ</th>
+                            <th class="px-6 py-3 font-bold text-gray-700">หน้าทำข้อสอบ</th>
+                            <th class="px-6 py-3 font-bold text-gray-700">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="linksTableBody">
+                        <!-- โดนเติมด้วย JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

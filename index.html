@@ -3,83 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบศูนย์กลางการทดสอบ - วิทยาลัยเทคนิคสัตหีบ</title>
+    <title>ระบบทดสอบออนไลน์ - วิทยาลัยเทคนิคสัตหีบ</title>
+    <!-- นำเข้า Tailwind CSS สำหรับการจัดการความสวยงาม -->
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <style>
+        /* ป้องกันการคลุมดำข้อความบนหน้าเว็บหลัก */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+    <!-- Firebase SDK สำหรับดึงข้อมูล Form URL -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full text-center mx-4">
-        <h1 class="text-2xl font-bold text-blue-800 mb-2">ระบบศูนย์กลางการทดสอบ AJ.ARE V1.2</h1>
-        <p class="text-gray-600 mb-8">กรุณาเลือกรายวิชาที่ต้องการทดสอบ</p>
+        // ==========================================
+        // 1. นำตั้งค่า Firebase Config อันเดียวกันกับใน dashboard.html มาใส่ตรงนี้
+        // ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCmB4fRT8x8sRnvh8U4NyzOG7NzphtXJtM",
+  authDomain: "tatc-form-exam.firebaseapp.com",
+  projectId: "tatc-form-exam",
+  storageBucket: "tatc-form-exam.firebasestorage.app",
+  messagingSenderId: "382874928446",
+  appId: "1:382874928446:web:aab85bdbd232684af0986f",
+  measurementId: "G-KHDB49R1SN"
+};
 
-        <div class="space-y-4">
-            <!-- ปุ่มวิชาที่ 1 -->
-            <button onclick="checkPassword('plc20105')" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition">
-                1. สอบวิชา โปรแกรมเมเบิลลอจิกคอนโทรลเลอร์ ปวช
-            </button>
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // ดึง ID จาก URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('id');
+
+        async function loadExamForm() {
+            const iframeContainer = document.getElementById('iframeContainer');
             
-            <!-- ปุ่มวิชาที่ 2 -->
-            <button onclick="checkPassword('electronics')" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition">
-                2. สอบวิชา อิเล็กทรอนิกส์อุตสาหกรรม
-            </button>
-
-            <!-- ปุ่มวิชาที่ 3 -->
-            <button onclick="checkPassword('micro')" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition">
-                3. สอบวิชา ไมโครคอนโทรลเลอร์
-            </button>
-
-            <!-- ปุ่มวิชาที่ 4 -->
-            <button onclick="checkPassword('instrument')" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition">
-                4. สอบวิชา เครื่องมือวัด
-            </button>
-        </div>
-        
-        <p class="text-sm text-red-600 mt-8 font-bold">
-            คำเตือน: ระบบจะมีการบันทึกพฤติกรรมการสลับหน้าจอของท่านในทุกรายวิชา
-        </p>
-    </div>
-
-    <!-- ชุดคำสั่ง JavaScript สำหรับตรวจสอบรหัสผ่าน -->
-    <script>
-        // ฐานข้อมูลรหัสผ่านและหน้าเว็บปลายทางของแต่ละรายวิชา
-        const examData = {
-            'plc': {
-                password: "plc20105", // เปลี่ยนรหัสผ่านวิชา PLC ที่นี่
-                url: "plc20105.html"
-            },
-            'electronics': {
-                password: "456", // เปลี่ยนรหัสผ่านวิชาอิเล็กทรอนิกส์ฯ ที่นี่
-                url: "exam-electronics.html"
-            },
-            'micro': {
-                password: "789", // เปลี่ยนรหัสผ่านวิชาไมโครฯ ที่นี่
-                url: "exam-micro.html"
-            },
-            'instrument': {
-                password: "abc", // เปลี่ยนรหัสผ่านวิชาเครื่องมือวัด ที่นี่
-                url: "exam-instrument.html"
+            if (!examId) {
+                iframeContainer.innerHTML = '<div class="flex items-center justify-center h-full text-red-600 font-bold text-xl">ไม่พบรหัสข้อสอบ กรุณาตรวจสอบลิงก์อีกครั้ง</div>';
+                return;
             }
-        };
 
-        function checkPassword(subjectKey) {
-            // ดึงข้อมูลรายวิชาจากฐานข้อมูล
-            const exam = examData[subjectKey];
-            
-            // แสดงกล่องโต้ตอบให้ผู้เข้าสอบกรอกรหัสผ่าน
-            const userInput = prompt("กรุณากรอกรหัสผ่านเพื่อเข้าสู่แบบทดสอบ:");
-            
-            // ตรวจสอบเงื่อนไข
-            if (userInput === null) {
-                // กรณีผู้ใช้กดปุ่ม ยกเลิก (Cancel)
-                return; 
-            } else if (userInput === exam.password) {
-                // กรณีรหัสผ่านถูกต้อง ให้เปลี่ยนไปยังหน้าข้อสอบ
-                window.location.href = exam.url;
-            } else {
-                // กรณีรหัสผ่านไม่ถูกต้อง
-                alert("รหัสผ่านไม่ถูกต้อง กรุณาติดต่อผู้คุมสอบ");
+            try {
+                const docRef = doc(db, "exams", examId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const formUrl = docSnap.data().formUrl;
+                    iframeContainer.innerHTML = `<iframe src="${formUrl}" width="100%" height="100%" frameborder="0" marginheight="0" marginwidth="0">กำลังโหลดข้อสอบ…</iframe>`;
+                } else {
+                    iframeContainer.innerHTML = '<div class="flex items-center justify-center h-full text-red-600 font-bold text-xl">รหัสข้อสอบไม่ถูกต้อง หรือข้อสอบถูกลบไปแล้ว</div>';
+                }
+            } catch (error) {
+                console.error("Error fetching document:", error);
+                iframeContainer.innerHTML = '<div class="flex items-center justify-center h-full text-red-600 font-bold text-xl">เกิดข้อผิดพลาดในการโหลดข้อมูลข้อสอบ</div>';
             }
         }
+
+        // โหลดข้อสอบทันทีที่เปิดเว็บ
+        loadExamForm();
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col relative" oncontextmenu="return false;">
+
+    <!-- หน้าต่างบังคับเข้าสู่โหมดเต็มหน้าจอ (เฉพาะคอมพิวเตอร์) -->
+    <div id="fullscreenOverlay" class="fixed inset-0 bg-blue-900 z-[10000] flex flex-col items-center justify-center text-white p-6 text-center">
+        <h2 class="text-3xl font-bold mb-4">เตรียมพร้อมก่อนเริ่มทำแบบทดสอบ</h2>
+        <p class="text-lg mb-6 text-blue-200">ระบบจำเป็นต้องทำงานในโหมดเต็มหน้าจอ (Full Screen) เพื่อป้องกันการแบ่งหน้าจอ</p>
+        <p class="text-md mb-8 text-red-300 font-bold">คำเตือน: หากท่านออกจากโหมดเต็มหน้าจอ ระบบจะนับเป็นการละเมิดเงื่อนไขทันที</p>
+        <button onclick="startFullscreenExam()" class="bg-green-500 text-white px-8 py-4 rounded-lg font-bold text-xl hover:bg-green-600 transition shadow-lg">
+            คลิกเพื่อเข้าสู่โหมดเต็มหน้าจอและเริ่มสอบ
+        </button>
+    </div>
+
+    <!-- ลายน้ำมุมขวาบน สำหรับแสดงจำนวนครั้งที่ละเมิด -->
+    <div id="switchCounter" class="fixed top-4 right-4 z-[9999] text-red-600/40 text-xl font-bold pointer-events-none select-none">
+        สลับหน้าจอ: 0 ครั้ง
+    </div>
+
+    <!-- หน้าต่างแจ้งเตือน (Modal) เมื่อตรวจพบการละเมิด -->
+    <div id="warningModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-[9999]">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm mx-4">
+            <h2 class="text-xl font-bold text-red-600 mb-2">แจ้งเตือนการทำผิดเงื่อนไข</h2>
+            <p class="text-gray-700 mb-4">ตรวจพบการสลับหน้าจอ พับแอปพลิเคชัน หรือออกจากโหมดเต็มหน้าจอ</p>
+            <p id="violationCount" class="font-bold text-lg mb-4 text-gray-800">จำนวนครั้งที่ละเมิด: 0</p>
+            <button onclick="closeModal()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+                รับทราบและกลับสู่การสอบ
+            </button>
+        </div>
+    </div>
+
+    <!-- ส่วนหัวของหน้าเว็บ -->
+    <header class="bg-blue-800 text-white p-4 shadow-md text-center relative z-20">
+        <h1 class="text-2xl font-bold">ระบบทดสอบออนไลน์ by Aj.ARE V1.4</h1>
+        <p class="text-sm mt-1">กรุณาทำแบบทดสอบด้วยความซื่อสัตย์ ระบบจะบันทึกพฤติกรรมการทดสอบของท่าน</p>
+    </header>
+
+    <!-- พื้นที่สำหรับฝัง Google Forms -->
+    <main class="flex-grow container mx-auto px-2 py-6 w-full max-w-4xl relative z-20">
+        <div id="iframeContainer" class="bg-white rounded-lg shadow-md overflow-hidden" style="height: 85vh;">
+            <div class="flex items-center justify-center h-full text-gray-500 font-bold text-xl">กำลังเชื่อมต่อฐานข้อมูลข้อสอบ...</div>
+		</div>
+    </main>
+
+    <!-- ระบบควบคุมการสอบ (JavaScript) -->
+    <script>
+        // 1. การตั้งค่าตัวแปรหลัก
+        let warningCount = 0;
+        const maxWarnings = 3;
+        const modal = document.getElementById('warningModal');
+        const countDisplay = document.getElementById('violationCount');
+        const switchCounterDisplay = document.getElementById('switchCounter');
+        const fullscreenOverlay = document.getElementById('fullscreenOverlay');
+
+        // 2. การตรวจจับประเภทอุปกรณ์ (Mobile Detection)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            // หากเป็นสมาร์ตโฟนหรือแท็บเล็ต ให้ซ่อนหน้าจอบังคับ Fullscreen ทันที
+            fullscreenOverlay.classList.add('hidden');
+        }
+
+        // 3. ฟังก์ชันควบคุมโหมดเต็มหน้าจอ (เฉพาะคอมพิวเตอร์)
+        function startFullscreenExam() {
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => { alert(`ระบบขัดข้อง: ${err.message}`); });
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        }
+
+        function checkFullscreenChange() {
+            if (isMobile) return; // ข้ามการตรวจสอบหากเป็นมือถือ
+
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                // กรณีหลุดจาก Fullscreen (เช่น กด ESC หรือแบ่งหน้าจอ)
+                fullscreenOverlay.classList.remove('hidden');
+                registerViolation();
+            } else {
+                // กรณีอยู่ใน Fullscreen
+                fullscreenOverlay.classList.add('hidden');
+            }
+        }
+
+        document.addEventListener('fullscreenchange', checkFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', checkFullscreenChange);
+        document.addEventListener('msfullscreenchange', checkFullscreenChange);
+
+        // 4. ฟังก์ชันบันทึกการละเมิดและยุติการสอบ
+        function registerViolation() {
+            warningCount++;
+            switchCounterDisplay.innerText = `สลับหน้าจอ: ${warningCount} ครั้ง`;
+
+            if (warningCount >= maxWarnings) {
+                terminateExam();
+            } else {
+                countDisplay.textContent = `จำนวนครั้งที่ละเมิด: ${warningCount} (ระบบจะยุติการสอบเมื่อครบ ${maxWarnings} ครั้ง)`;
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            window.focus();
+        }
+
+        function terminateExam() {
+            document.body.innerHTML = `
+                <div class="bg-red-900 min-h-screen flex flex-col items-center justify-center text-white p-6 text-center z-[20000] relative">
+                    <h1 class="text-5xl font-bold mb-6">ยุติการสอบ</h1>
+                    <p class="text-2xl mb-4">ท่านได้ละเมิดกฎการสอบ ครบ ${maxWarnings} ครั้ง</p>
+                    <p class="text-xl text-red-200 mb-8">ระบบได้ทำการยกเลิกสิทธิ์การทำแบบทดสอบของท่านแล้ว</p>
+                    <p class="text-lg bg-white text-red-900 px-6 py-2 rounded-lg font-bold">กรุณาติดต่อผู้คุมสอบทันที</p>
+                </div>
+            `;
+        }
+
+        // 5. ตัวรับฟังเหตุการณ์การสลับหน้าจอ (Tab & Window Blur)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                registerViolation();
+            }
+        });
+
+        window.addEventListener('blur', function() {
+            // ละเว้นการนับ หากผู้ใช้คลิกภายในกรอบข้อสอบ Google Forms
+            if (document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe') {
+                return;
+            }
+            registerViolation();
+        });
+
+        // 6. ระบบป้องกันคีย์ลัด (Print Screen, Save, Print) และ DevTools
+        document.addEventListener("keyup", function (e) {
+            if (e.key === "PrintScreen") {
+                navigator.clipboard.writeText("ไม่อนุญาตให้คัดลอกข้อสอบ");
+                alert("คำเตือน: ตรวจพบความพยายามในการบันทึกภาพหน้าจอ");
+                registerViolation();
+            }
+        });
+
+        document.addEventListener("keydown", function (e) {
+            // ป้องกันการกด F12 (DevTools)
+            if (e.key === "F12") {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้เครื่องมือนักพัฒนา");
+                registerViolation();
+            }
+            // ป้องกัน Ctrl+Shift+I, C, J (DevTools)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.key === 'J' || e.key === 'j')) {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้เครื่องมือนักพัฒนา");
+                registerViolation();
+            }
+            // ป้องกัน Ctrl+U (View Source), Ctrl+P (Print), Ctrl+S (Save), Ctrl+C (Copy), Ctrl+V (Paste), Ctrl+X (Cut)
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'P' || e.key === 'p' || e.key === 'S' || e.key === 's' || e.key === 'C' || e.key === 'c' || e.key === 'V' || e.key === 'v' || e.key === 'X' || e.key === 'x')) {
+                e.preventDefault();
+                alert("คำเตือน: ไม่อนุญาตให้ใช้คีย์ลัดนี้ระหว่างการสอบ");
+            }
+        });
+
+        // 7. ป้องกันการคัดลอก ตัด และวาง ผ่านเมาส์หรือเมนู
+        document.addEventListener('copy', function(e) { e.preventDefault(); return false; });
+        document.addEventListener('cut', function(e) { e.preventDefault(); return false; });
+        document.addEventListener('paste', function(e) { e.preventDefault(); return false; });
+
+        // 8. แจ้งเตือนเมื่อพยายามจะปิดหน้าต่างหรือรีเฟรชหน้าเว็บ
+        window.addEventListener("beforeunload", function (e) {
+            // จะแสดงกล่องข้อความยืนยันของเบราว์เซอร์
+            const confirmationMessage = "คุณแน่ใจหรือไม่ว่าต้องการออกจากหน้านี้? การสอบของคุณอาจไม่ได้รับการบันทึก";
+            e.returnValue = confirmationMessage;
+            return confirmationMessage;
+        });
+
+        // 9. ป้องกันการลากคลุมข้อความบนหน้าเว็บเพิ่มเติม
+        document.addEventListener('selectstart', function(e) { e.preventDefault(); });
+        document.addEventListener('dragstart', function(e) { e.preventDefault(); });
     </script>
 </body>
 </html>
