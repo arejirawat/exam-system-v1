@@ -69,30 +69,32 @@
         const switchCounterDisplay = document.getElementById('switchCounter');
         const fullscreenOverlay = document.getElementById('fullscreenOverlay');
 
-        // 2. การตรวจจับประเภทอุปกรณ์ (Mobile Detection)
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            // หากเป็นสมาร์ตโฟนหรือแท็บเล็ต ให้ซ่อนหน้าจอบังคับ Fullscreen ทันที
+// 2. การตรวจจับประเภทอุปกรณ์ (แยก iOS ออกจากระบบอื่นๆ)
+        // ตรวจจับ iPhone, iPod และ iPad (รวมถึง iPad OS รุ่นใหม่ที่มักแสดงตัวเป็น Mac)
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (isIOS) {
+            // หากเป็นระบบ iOS (iPhone/iPad) ให้ซ่อนหน้าจอบังคับ Fullscreen ทันที (เนื่องจากไม่รองรับ)
             fullscreenOverlay.classList.add('hidden');
         }
 
-        // 3. ฟังก์ชันควบคุมโหมดเต็มหน้าจอ (เฉพาะคอมพิวเตอร์)
+        // 3. ฟังก์ชันควบคุมโหมดเต็มหน้าจอ (สำหรับคอมพิวเตอร์ และ Android)
         function startFullscreenExam() {
             let elem = document.documentElement;
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().catch(err => { alert(`ระบบขัดข้อง: ${err.message}`); });
-            } else if (elem.webkitRequestFullscreen) {
+            } else if (elem.webkitRequestFullscreen) { 
                 elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) {
+            } else if (elem.msRequestFullscreen) { 
                 elem.msRequestFullscreen();
             }
         }
 
         function checkFullscreenChange() {
-            if (isMobile) return; // ข้ามการตรวจสอบหากเป็นมือถือ
+            if (isIOS) return; // ข้ามการตรวจสอบเงื่อนไขนี้เฉพาะผู้ใช้ iOS
 
             if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-                // กรณีหลุดจาก Fullscreen (เช่น กด ESC หรือแบ่งหน้าจอ)
+                // กรณีหลุดจาก Fullscreen (กด ESC, แบ่งหน้าจอ, หรือเปิดจอซ้อนบน Android)
                 fullscreenOverlay.classList.remove('hidden');
                 registerViolation();
             } else {
