@@ -13,17 +13,17 @@
         import { getFirestore, collection, addDoc, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================
-        // 1. นำตั้งค่า Firebase Config ของคุณมาใส่ตรงนี้
+        // 1. ตั้งค่า Firebase Config (tatc-form-exam)
         // ==========================================
-const firebaseConfig = {
-  apiKey: "AIzaSyCmB4fRT8x8sRnvh8U4NyzOG7NzphtXJtM",
-  authDomain: "tatc-form-exam.firebaseapp.com",
-  projectId: "tatc-form-exam",
-  storageBucket: "tatc-form-exam.firebasestorage.app",
-  messagingSenderId: "382874928446",
-  appId: "1:382874928446:web:aab85bdbd232684af0986f",
-  measurementId: "G-KHDB49R1SN"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmB4fRT8x8sRnvh8U4NyzOG7NzphtXJtM",
+            authDomain: "tatc-form-exam.firebaseapp.com",
+            projectId: "tatc-form-exam",
+            storageBucket: "tatc-form-exam.firebasestorage.app",
+            messagingSenderId: "382874928446",
+            appId: "1:382874928446:web:aab85bdbd232684af0986f",
+            measurementId: "G-KHDB49R1SN"
+        };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
@@ -100,9 +100,13 @@ const firebaseConfig = {
                     linksTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">ยังไม่มีการสร้างลิงก์ข้อสอบ</td></tr>';
                 }
 
+                // คำนวณ Base URL ให้รองรับ GitHub Pages (เช่น https://arejirawat.github.io/exam-system-v1)
+                const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+                const baseUrl = `${window.location.origin}${basePath}`;
+
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    const examUrl = `${window.location.origin}/index.html?id=${doc.id}`;
+                    const examUrl = `${baseUrl}/exam.html?id=${doc.id}`;
                     
                     const row = `
                         <tr class="border-b">
@@ -130,11 +134,17 @@ const firebaseConfig = {
         createForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const examName = document.getElementById('examName').value;
-            let formUrl = document.getElementById('formUrl').value;
+            let formUrl = document.getElementById('formUrl').value.trim();
+
+            // รองรับกรณีที่ครูวางโค้ด <iframe src="..."> ทั้งก้อน
+            const iframeMatch = formUrl.match(/src=["']([^"']+)["']/i);
+            if (iframeMatch && iframeMatch[1]) {
+                formUrl = iframeMatch[1];
+            }
 
             // ตรวจสอบความถูกต้องของลิงก์เบื้องต้น
-            if (!formUrl.includes('docs.google.com/forms')) {
-                alert('กรุณาใส่ลิงก์ของ Google Form ให้ถูกต้อง');
+            if (!formUrl.includes('docs.google.com/forms') && !formUrl.includes('forms.gle')) {
+                alert('กรุณาใส่ลิงก์ของ Google Form หรือโค้ด Embed ให้ถูกต้อง');
                 return;
             }
 
@@ -223,8 +233,8 @@ const firebaseConfig = {
                         <input type="text" id="examName" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="เช่น กลางภาค วิชาคณิตศาสตร์ ม.4">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">ลิงก์ Google Form (แนะนำให้ใช้ลิงก์แบบ Embed ฝังหน้าเว็บ)</label>
-                        <input type="url" id="formUrl" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://docs.google.com/forms/d/e/.../viewform">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ลิงก์ Google Form หรือโค้ดฝังหน้าเว็บ (&lt;iframe&gt;)</label>
+                        <input type="text" id="formUrl" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="วางลิงก์ https://docs.google.com/forms/... หรือโค้ด <iframe src=...> ได้เลย">
                     </div>
                     <button type="submit" id="submitBtn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700">
                         สร้างลิงก์สำหรับนักเรียน
